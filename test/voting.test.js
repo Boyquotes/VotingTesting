@@ -40,7 +40,7 @@ contract('Voting', function (accounts) {
     await _votingInstance.endVotingSession({from: Owner});
   }
 
-  context("Events trigger", function() {
+  context("Events and Revert trigger", function() {
     beforeEach(async function () {
       VotingInstance = await Voting.new({from: Owner});
     });
@@ -52,14 +52,41 @@ contract('Voting', function (accounts) {
     it("Register Voter1", async () => {
         let receipt = await VotingInstance.addVoter(Voter1, {from: Owner});
         expectEvent(receipt, 'VoterRegistered', {voterAddress: Voter1});
-    })
+    });
+    it("GetWinner in an incorrect workflow status", async () => {
+      await VotingInstance.addVoter(Voter1, {from: Owner});
+      await VotingInstance.startProposalsRegistering({ from: Owner });
+      await expectRevert(
+        VotingInstance.getWinner(),
+        "Votes are not tallied yet"
+      );
+    });
   });
 
   context('addProposal, testing add proposal and associated events', function (accounts) {
     const Proposal1 = 'Bitcoin';
+    const EmptyProposal = '';
 
     beforeEach(async function () {
       VotingInstance = await Voting.new({from: Owner});
+    });
+
+    it("AddProposal in an incorrect workflow status", async () => {
+      await VotingInstance.addVoter(Voter1, {from: Owner});
+      await VotingInstance.startProposalsRegistering({ from: Owner });
+      await VotingInstance.endProposalsRegistering({ from: Owner });
+      await expectRevert(
+        VotingInstance.addProposal(Proposal1, { from: Voter1 }),
+        "Proposals are not allowed yet"
+      );
+    });
+    it("Add an empty description proposal", async () => {
+      await VotingInstance.addVoter(Voter1, {from: Owner});
+      await VotingInstance.startProposalsRegistering({ from: Owner });
+      await expectRevert(
+        VotingInstance.addProposal(EmptyProposal, { from: Voter1 }),
+        "Vous ne pouvez pas ne rien proposer"
+      );
     });
 
     it('addProposal 1', async function () { 
@@ -75,14 +102,56 @@ contract('Voting', function (accounts) {
     });
   });
 
-  context('addVote, testing add vote and associated events', function (accounts) {
+  context('addVoter and setVote, testing add vote and associated events', function (accounts) {
     beforeEach(async function () {
       VotingInstance = await Voting.new({from: Owner});
     });
     const Proposal1 = 'Ethereum';
     const Proposal2 = 'BNB';
 
-    it('addVote 1', async function () {
+    it("addVoter in an incorrect workflow status", async () => {
+      await VotingInstance.startProposalsRegistering({ from: Owner });
+      await expectRevert(
+        VotingInstance.addVoter(Voter1, {from: Owner}),
+        "Voters registration is not open yet"
+      );
+    });
+
+    it("setVote in an incorrect workflow status", async () => {
+      await VotingInstance.addVoter(Voter1, {from: Owner});
+      await VotingInstance.startProposalsRegistering({ from: Owner });
+      await VotingInstance.addProposal(Proposal1, {from: Voter1});
+      await VotingInstance.endProposalsRegistering({ from: Owner });
+      await expectRevert(
+        VotingInstance.setVote('1', {from: Voter1}),
+        "Voting session havent started yet"
+      );
+    });
+    it("setVote but have already vote", async () => {
+      await VotingInstance.addVoter(Voter1, {from: Owner});
+      await VotingInstance.startProposalsRegistering({ from: Owner });
+      await VotingInstance.addProposal(Proposal1, {from: Voter1});
+      await VotingInstance.endProposalsRegistering({ from: Owner });
+      await VotingInstance.startVotingSession({from: Owner});
+      await VotingInstance.setVote('0', {from: Voter1});
+      await expectRevert(
+        VotingInstance.setVote('0', {from: Voter1}),
+        "You have already voted"
+      );
+    });
+    it("setVote but proposal not found", async () => {
+      await VotingInstance.addVoter(Voter1, {from: Owner});
+      await VotingInstance.startProposalsRegistering({ from: Owner });
+      await VotingInstance.addProposal(Proposal1, {from: Voter1});
+      await VotingInstance.endProposalsRegistering({ from: Owner });
+      await VotingInstance.startVotingSession({from: Owner});
+      await expectRevert(
+        VotingInstance.setVote(new BN(2), {from: Voter1}),
+        "Proposal not found"
+      );
+    });
+
+    it('setVote', async function () {
       let Voters = [Voter1, Voter2, Voter3];
       let Proposals = [Proposal1, Proposal2];
       await prepareVote(VotingInstance, Voters, Proposals);
@@ -100,7 +169,7 @@ contract('Voting', function (accounts) {
   
       expectEvent(receipt, "Voted", { voter: Voter1, proposalId: '1'}); 
     });
-    it('addVote but not a voter', async function () {
+    it('setVote but not a voter', async function () {
       // Voting with a non voter user -> FAIL
       await (expectRevert(VotingInstance.setVote('1', {from: Voter1}), "You're not a voter"));
     });
@@ -161,7 +230,17 @@ contract('Voting', function (accounts) {
     let Voters = [Voter1, Voter2, Voter3];
     let Proposals = ['Bitcoin', 'Ethereum', 'BNB'];
     let Votes = [2, 1, 2];
-    it('get tally votes information', async function () {
+
+    it("Get tallyVotes in an incorrect workflow status", async () => {
+      await VotingInstance.addVoter(Voter1, {from: Owner});
+      await VotingInstance.startProposalsRegistering({ from: Owner });
+      await expectRevert(
+        VotingInstance.tallyVotes(),
+        "Current status is not voting session ended"
+      );
+    });
+
+    it('get tally votes and check winner information', async function () {
       await prepareVote(VotingInstance, Voters, Proposals);
       await VotingInstance.startVotingSession({from: Owner});
       await addMultipleVotes(VotingInstance, Voters, Votes);

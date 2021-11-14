@@ -1,4 +1,4 @@
-# Voting Test Suite - DEFI 2
+# Voting Tests Suite - DEFI 2
 
 ## Tests coverage :
 
@@ -23,6 +23,9 @@
 - addVote : Ownable: caller is not the owner
 - setVote : Voting session havent started yet
 - addVoter : Already registered
+- addVoter : Voters registration is not open yet
+- addProposal : Proposals are not allowed yet
+- getWinner : Votes are not tallied yet
 
 ### Testing expect winner Proposal object :
 - getWinner
@@ -30,13 +33,14 @@
 ## INSTALLATION
 ```bash
 git clone this repository
+```
 
 RUN in the root directory :
 ```bash
 npm install @openzeppelin/contracts --save
 npm install @openzeppelin/test-helpers --save
 ```
-First launch, compilation contract + test :
+First launch : compilation contract + test :
 ```bash
 truffle compil
 truffle test test/voting.test.js --network development -g Voting
