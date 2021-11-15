@@ -3,7 +3,11 @@
 pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-
+/// @title Voting system
+/// @author Nicolas Villa
+/// @notice You can use this contract for a DAO
+/// @dev Development in progress, stay free to modify this contract
+/// @custom:experimental This is an experimental contract for study propose.
 contract Voting is Ownable {
 
     // arrays for draw, uint for single
@@ -11,18 +15,24 @@ contract Voting is Ownable {
     Proposal[] winningProposals;
     
     uint winningProposalID;
-    
+    /**
+     * @dev Struct of an Voter
+     */    
     struct Voter {
         bool isRegistered;
         bool hasVoted;
         uint votedProposalId;
     }
-
+    /**
+     * @dev Struct of an Proposal
+     */
     struct Proposal {
         string description;
         uint voteCount;
     }
-
+    /**
+     * @dev Enum for the different step in the voting process
+     */
     enum  WorkflowStatus {
         RegisteringVoters,
         ProposalsRegistrationStarted,
@@ -35,7 +45,9 @@ contract Voting is Ownable {
     WorkflowStatus public workflowStatus;
     Proposal[] public proposalsArray;
     mapping (address => Voter) private voters;
-
+    /**
+     * @dev Enum for the different step in the voting process
+     */
     event VoterRegistered(address voterAddress); 
     event WorkflowStatusChange(WorkflowStatus previousStatus, WorkflowStatus newStatus);
     event ProposalRegistered(uint proposalId);
@@ -70,7 +82,10 @@ contract Voting is Ownable {
     }
  
     // ::::::::::::: REGISTRATION ::::::::::::: // 
-
+    /**
+     * @dev Add a voter with his blockchain address
+      * @param _addr of voter
+     */
     function addVoter(address _addr) external onlyOwner {
         require(workflowStatus == WorkflowStatus.RegisteringVoters, 'Voters registration is not open yet');
         require(voters[_addr].isRegistered != true, 'Already registered');
@@ -88,7 +103,10 @@ contract Voting is Ownable {
     }*/
 
     // ::::::::::::: PROPOSAL ::::::::::::: // 
-
+    /**
+     * @dev Voter add proposal.
+     * @param _desc content of proposal
+     */
     function addProposal(string memory _desc) external onlyVoters {
         require(workflowStatus == WorkflowStatus.ProposalsRegistrationStarted, 'Proposals are not allowed yet');
         require(keccak256(abi.encode(_desc)) != keccak256(abi.encode("")), 'Vous ne pouvez pas ne rien proposer'); // facultatif
